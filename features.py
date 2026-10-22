@@ -34,12 +34,16 @@ def features(path):
     students = [s for s in words if s != teacher]
     t_cues = [c for c in cues if c[1] == teacher]
     first, last = dur * 0.1, dur * 0.9
+    kids = [c[1] for c in cues if c[1] != teacher and not c[1].startswith(("Audio", "?"))]
+    turns = [k for i, k in enumerate(kids) if i == 0 or k != kids[i - 1]]  # consecutive cues by one kid = one turn
+    switches = sum(a != b for a, b in zip(turns, turns[1:]))
     total = sum(words.values()) or 1
     return {
         "teacher": teacher,
         "duration_min": round(dur / 60, 1),
         "teacher_talk_share": round(words[teacher] / total, 2),
         "n_students": len(students),
+        "kid_switches_per_min": round(switches / (dur / 60), 1),
         "student_turns": sum(1 for c in cues if c[1] != teacher),
         "student_words_per_min": round((total - words[teacher]) / (dur / 60), 1),
         "teacher_questions": sum(c[2].count("?") for c in t_cues),

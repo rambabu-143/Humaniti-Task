@@ -21,14 +21,19 @@ def sample(video, out):
     return sorted(out.glob("*.jpg"))
 
 
+SCALES = [0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0, 1.2]  # tile size/position varies per class and Zoom layout
+
+
 def analyse(img):
-    h, w = img.shape[:2]
-    tile = img[: int(h * 0.2), int(w * 0.8):]  # ponytail: assumes Zoom speaker tile top-right, fixed layout
-    g = cv2.cvtColor(tile, cv2.COLOR_BGR2GRAY)
-    logo = cv2.matchTemplate(g, LOGO, cv2.TM_CCOEFF_NORMED).max() > 0.6
-    faces = FACE.detectMultiScale(g, 1.1, 4, minSize=(20, 20))
+    g = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+    best = 0.0
+    for s in SCALES:
+        t = cv2.resize(LOGO, None, fx=s, fy=s)
+        best = max(best, cv2.matchTemplate(g, t, cv2.TM_CCOEFF_NORMED).max())
+    # ponytail: whole-frame face search; screen-share frames only contain faces in the camera tile
+    faces = FACE.detectMultiScale(g, 1.1, 6, minSize=(18, 18))
     bright = float(g[faces[0][1]:faces[0][1] + faces[0][3], faces[0][0]:faces[0][0] + faces[0][2]].mean()) if len(faces) else None
-    return logo, len(faces) > 0, bright
+    return best > 0.5, len(faces) > 0, bright
 
 
 def frame_features(video, cache, cues=None, teacher=None):

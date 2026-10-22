@@ -3,7 +3,7 @@ import tempfile
 
 from features import features, parse
 from pipeline import verified
-from score import score
+from score import observations, score
 
 VTT = """WEBVTT
 
@@ -20,7 +20,7 @@ Ria: Good, ma'am!
 Tutor Ann: Today we will learn the knight, and your homework is puzzle three.
 
 4
-00:00:31.000 --> 00:00:33.000
+00:03:00.000 --> 00:03:03.000
 Audio shared by Ann: music music music music music music music music music music
 """
 
@@ -53,6 +53,17 @@ def test_verified_drops_invented_quotes():
     cues = parse(vtt_file())
     real = {"quote": "Tutor Ann: Hello Ria, how are you?"}
     assert verified([real, {"quote": "You are all doing great"}, "junk"], cues) == [real]
+
+
+def test_observations_use_real_transcript_lines():
+    p = vtt_file()
+    f = features(p)
+    obs = {o["point"].split()[0]: o for o in observations(parse(p), f, {"frames": 0})}
+    assert obs["Opened"]["ok"] and "how are you" in obs["Opened"]["quote"]
+    hw = next(o for o in observations(parse(p), f, {"frames": 0}) if "homework" in o["point"].lower())
+    assert hw["ok"] and "puzzle three" in hw["quote"]
+    dim = observations(parse(p), f, {"frames": 5, "logo_background_share": 0.0, "face_visible_share": 0.1, "face_brightness": 50})
+    assert sum(not o["ok"] for o in dim) >= 3  # no background, hidden face, dim face
 
 
 if __name__ == "__main__":

@@ -7,7 +7,7 @@ Upload an online class recording (and its `.vtt` transcript if you have one). Ge
 2. **Signals** (`features.py`): student words/min, student turns, teacher talk share, rapport intro, closing, praise, homework.
 3. **Camera tile** (`frames.py`): every 30s, only frames where the tutor is speaking: 8x8 logo, face visible, face brightness.
 4. **Grade** (`score.py`): hand-set weights, taken from the human reviewer's feedback on the sample classes. The label comes from this score, not the LLM.
-5. **Explanation** (`pipeline.py`): Qwen3-8B writes strengths/improvements. Each must quote the transcript; quotes that don't appear in it are dropped.
+5. **Explanation** (`score.py`, `pipeline.py`): each rubric item is checked in code and backed by the real transcript line or number. Qwen3-8B only writes the summary and coaching tips. Without a `.vtt` it picks the quotes itself, and quotes not found in the transcript are dropped.
 
 ## Run
 Needs macOS/Linux, Python 3.10+, `ffmpeg`, and [llama.cpp](https://github.com/ggml-org/llama.cpp) (`llama-server`).
@@ -24,5 +24,6 @@ Check: `.venv/bin/python test_core.py`. A 50-minute class takes 1-5 minutes.
 ## Limitations
 - Weights are fitted by hand on 10 labelled classes (2 per grade): a rubric, not a trained model.
 - Without a `.vtt` there is no teacher/student split; the strongest signal is lost.
-- The logo check assumes the Zoom speaker tile sits top-right; it missed the background in 3 classes the reviewer said had one.
+- The logo and face checks are whole-frame template/Haar matches sampled every 30s; they agree with the reviewer on all 10 English classes, but chat-shared homework or background changes outside the transcript can't be seen.
+- 6 of the 8 reviewer-labelled classes get the exact grade (the others are one level off: B435 average -> Good, B558 weak -> Average).
 - Mostly-English; Malayalam classes are unreliable.

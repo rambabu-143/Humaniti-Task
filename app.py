@@ -13,9 +13,9 @@ def run(video, vtt):
         lines.append(f"> {r['note']}")
     for title, key in [("Strengths", "strengths"), ("To improve", "improvements")]:
         lines.append(f"### {title}")
-        lines += [f"- **{i.get('time', '')}** {i['point']}  \n  _\"{i['quote']}\"_" for i in r[key]] or ["- (no quote-verified observations)"]
-    if r.get("setup_flags"):
-        lines += ["### Setup flags"] + [f"- {f}" for f in r["setup_flags"]]
+        lines += [f"- **{i.get('time', '')}** {i['point']}" + (f"  \n  _\"{i['quote']}\"_" if i.get("quote") else "") for i in r[key]] or ["- (none)"]
+    if r.get("tips"):
+        lines += ["### Coaching tips"] + [f"- {t}" for t in r["tips"]]
     return "\n".join(lines), r.get("score_breakdown", {}), r["signals"]
 
 
