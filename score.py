@@ -38,7 +38,7 @@ def observations(cues, f, fr):
     from features import BYE, HW, INTRO, PRAISE
     t = f["teacher"]
     dur = max(c[0] for c in cues)
-    mine = [c for c in cues if c[1] == t]
+    mine = cues if f.get("diarized") else [c for c in cues if c[1] == t]  # diarized: teacher is split across clusters
 
     def first(rx, lo=0, hi=1e9):
         return next((c for c in mine if lo <= c[0] <= hi and rx.search(c[2])), None)

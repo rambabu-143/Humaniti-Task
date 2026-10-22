@@ -24,7 +24,7 @@ def parse(path):
     return out
 
 
-def features(path):
+def features(path, diarized=False):
     cues = path if isinstance(path, list) else parse(path)  # path to a .vtt, or already-parsed cues
     dur = max(c[0] for c in cues) or 1
     words = Counter()
@@ -32,7 +32,7 @@ def features(path):
         words[sp] += len(t.split())
     teacher = next(w for w, _ in words.most_common() if not w.startswith("Audio shared"))  # ponytail: teacher = most words; fails if kids dominate
     students = [s for s in words if s != teacher]
-    t_cues = [c for c in cues if c[1] == teacher]
+    t_cues = cues if diarized else [c for c in cues if c[1] == teacher]  # diarized: the teacher is split across clusters, so match everyone
     first, last = dur * 0.1, dur * 0.9
     kids = [c[1] for c in cues if c[1] != teacher and not c[1].startswith(("Audio", "?"))]
     turns = [k for i, k in enumerate(kids) if i == 0 or k != kids[i - 1]]  # consecutive cues by one kid = one turn

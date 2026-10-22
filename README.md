@@ -23,7 +23,7 @@ Check: `.venv/bin/python test_core.py`. A 50-minute class takes 1-5 minutes.
 
 ## Limitations
 - Weights are fitted by hand on 10 labelled classes (2 per grade): a rubric, not a trained model.
-- Without a `.vtt` the teacher/student split comes from diarization. On the 8 labelled classes it gets 2 exact grades and 7 within one level (with a `.vtt`: 6 exact). Ordering is mostly kept, but treat it as approximate.
+- Without a `.vtt` the teacher/student split comes from diarization. On the 8 labelled classes it gets 4 exact grades and 7 within one level (with a `.vtt`: 6 exact); weak B558 is graded Excellent because the teacher's speech is split into "student" clusters. Treat it as approximate.
 - The logo and face checks are whole-frame template/Haar matches sampled every 30s; they agree with the reviewer on all 10 English classes, but chat-shared homework or background changes outside the transcript can't be seen.
 - 6 of the 8 reviewer-labelled classes get the exact grade (the others are one level off: B435 average -> Good, B558 weak -> Average).
 - Mostly-English; Malayalam classes are unreliable.

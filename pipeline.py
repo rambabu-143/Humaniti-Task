@@ -36,8 +36,8 @@ def assess(video, vtt=None, cache="cache/frames"):
         feats = features(cues)
     else:
         cues = labelled_cues(video)  # local diarization: speaker identity is noisy, so score() skips per-kid signals
-        feats = {**features(cues), "diarized": True}
-    fr = frame_features(video, Path(cache) / video.stem.replace(" ", ""), cues, feats["teacher"])
+        feats = {**features(cues, diarized=True), "diarized": True}
+    fr = frame_features(video, Path(cache) / video.stem.replace(" ", ""), None if feats.get("diarized") else cues, feats["teacher"])
     total, label, parts = score(feats)
     obs = observations(cues, feats, fr)
     prompt = (f"Grade: {label} ({total}/100). Rubric findings (already verified against the transcript):\n"
