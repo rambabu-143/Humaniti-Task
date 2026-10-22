@@ -4,3 +4,4 @@ cache/
 *.vtt
 __pycache__/
 .venv/
+models/

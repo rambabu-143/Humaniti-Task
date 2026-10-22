@@ -25,7 +25,7 @@ def parse(path):
 
 
 def features(path):
-    cues = parse(path)
+    cues = path if isinstance(path, list) else parse(path)  # path to a .vtt, or already-parsed cues
     dur = max(c[0] for c in cues) or 1
     words = Counter()
     for _, sp, t in cues:
