@@ -1,10 +1,9 @@
 """Recording (+ optional .vtt) -> {label, observations, signals}. Fully local: Phonon-2, OpenCV, Qwen3-8B via llama-server."""
 import json
-import subprocess
-import tempfile
 import urllib.request
 from pathlib import Path
 
+from diarize import labelled_cues
 from features import features, parse
 from frames import frame_features
 from score import observations, score
@@ -23,24 +22,6 @@ Poor classes had teacher talk share 74-80%, <20 student words/min, weak intro/cl
 Signals are automatic and noisy (keyword counts, face detector): treat them as hints, ground every observation in the transcript."""
 
 
-def transcribe(video):
-    """No .vtt supplied: Phonon-2 locally. ponytail: no speaker labels, so no talk-ratio features; add diarization later."""
-    with tempfile.TemporaryDirectory() as d:
-        wav = Path(d) / "a.wav"
-        subprocess.run(["ffmpeg", "-v", "error", "-y", "-i", str(video), "-ac", "1", "-ar", "16000", str(wav)], check=True)
-        out = subprocess.run(["phonon", "transcribe", "--json", str(wav)], capture_output=True, text=True, check=True).stdout
-    segs = json.loads(out[out.index("{"):]).get("segments", [])
-    return [(int(s.get("start", 0)), "?", s.get("text", "").strip()) for s in segs]
-
-
-def excerpt(cues, dur):
-    """Intro + outro + a slice of the middle, as 'mm:ss Speaker: text' (keeps the prompt ~6k tokens)."""
-    def block(lo, hi):
-        return "\n".join(f"{t//60:02d}:{t%60:02d} {s}: {x}" for t, s, x in cues if lo <= t < hi)
-    mid = dur / 2
-    return (f"[START]\n{block(0, 360)}\n[MIDDLE]\n{block(mid - 180, mid + 180)}\n[END]\n{block(dur - 300, dur + 1)}")[:22000]
-
-
 def ask(prompt):
     body = {"messages": [{"role": "system", "content": RUBRIC}, {"role": "user", "content": prompt + " /no_think"}],
             "temperature": 0.2, "response_format": {"type": "json_object"}}
@@ -48,43 +29,26 @@ def ask(prompt):
     return json.loads(json.loads(urllib.request.urlopen(req, timeout=900).read())["choices"][0]["message"]["content"])
 
 
-def norm(t):
-    return " ".join("".join(c if c.isalnum() else " " for c in t.lower()).split())
-
-
-def verified(items, cues):
-    """Keep only observations whose quote really appears in the transcript."""
-    text = norm(" ".join(f"{c[1]}: {c[2]}" for c in cues) + " " + " ".join(c[2] for c in cues))
-    return [i for i in items if isinstance(i, dict) and i.get("quote") and norm(i["quote"]) in text]
-
-
 def assess(video, vtt=None, cache="cache/frames"):
     video = Path(video)
-    cues = parse(vtt) if vtt else transcribe(video)
-    feats = features(vtt) if vtt else {}
-    fr = frame_features(video, Path(cache) / video.stem.replace(" ", ""), cues if vtt else None, feats.get("teacher"))
-    dur = max(c[0] for c in cues)
-    if feats:
-        total, label, parts = score(feats)
-        obs = observations(cues, feats, fr)
-        prompt = (f"Grade: {label} ({total}/100). Rubric findings (already verified against the transcript):\n"
-                  + "\n".join(f"- {'OK' if o['ok'] else 'ISSUE'}: {o['point']}" for o in obs)
-                  + '\nReturn JSON: {"summary": "2 sentences explaining the grade using only these findings", '
-                    '"tips": ["up to 3 concrete coaching tips for the tutor, one sentence each"]}')
-        res = ask(prompt)
-        res.update(label=label, score=total, score_breakdown={k: round(v) for k, v in parts.items()},
-                   strengths=[o for o in obs if o["ok"]], improvements=[o for o in obs if not o["ok"]])
-        return {**res, "signals": {**feats, **fr}}
-    prompt = (f"Camera/background signals (share 0-1):\n{json.dumps(fr)}\n\nTranscript excerpts:\n{excerpt(cues, dur)}\n\n"
-              'Return JSON: {"label": "Poor|Average|Good|Excellent", "summary": "2 sentences", '
-              '"strengths": [{"point": "...", "quote": "EXACT words copied from the transcript", "time": "mm:ss"}], '
-              '"improvements": [{"point": "...", "quote": "EXACT words copied from the transcript", "time": "mm:ss"}]}')
+    if vtt:
+        cues = parse(vtt)
+        feats = features(cues)
+    else:
+        cues = labelled_cues(video)  # local diarization: speaker identity is noisy, so score() skips per-kid signals
+        feats = {**features(cues), "diarized": True}
+    fr = frame_features(video, Path(cache) / video.stem.replace(" ", ""), cues, feats["teacher"])
+    total, label, parts = score(feats)
+    obs = observations(cues, feats, fr)
+    prompt = (f"Grade: {label} ({total}/100). Rubric findings (already verified against the transcript):\n"
+              + "\n".join(f"- {'OK' if o['ok'] else 'ISSUE'}: {o['point']}" for o in obs)
+              + '\nReturn JSON: {"summary": "2 sentences explaining the grade using only these findings", '
+                '"tips": ["up to 3 concrete coaching tips for the tutor, one sentence each"]}')
     res = ask(prompt)
-    res["strengths"] = verified(res.get("strengths", []), cues)
-    res["improvements"] = verified(res.get("improvements", []), cues)
-    res["note"] = "No speaker labels (no .vtt): grade is the model's judgement from text only, less reliable."
-    if res.get("label") not in LABELS:
-        res["label"] = "Average"  # ponytail: model strayed from the label set
+    res.update(label=label, score=total, score_breakdown={k: round(v) for k, v in parts.items()},
+               strengths=[o for o in obs if o["ok"]], improvements=[o for o in obs if not o["ok"]])
+    if feats.get("diarized"):
+        res["note"] = "No .vtt: speakers were separated automatically, so the teacher/student split is approximate and per-kid signals are skipped. Lower confidence."
     return {**res, "signals": {**feats, **fr}}
 
 

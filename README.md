@@ -3,7 +3,7 @@
 Upload an online class recording (and its `.vtt` transcript if you have one). Get **Poor / Average / Good / Excellent** plus evidence-backed observations. Everything runs locally: recordings show children and never leave the machine.
 
 ## How it works
-1. **Transcript**: uses the `.vtt` if given (has speaker names). Otherwise Phonon-2 transcribes the audio locally (no speaker labels, so the grade is less reliable).
+1. **Transcript**: uses the `.vtt` if given (has speaker names). Otherwise Phonon-2 transcribes locally and sherpa-onnx separates speakers into 4 clusters (teacher = most words); per-kid signals are skipped and the grade is flagged lower confidence.
 2. **Signals** (`features.py`): student words/min, student turns, teacher talk share, rapport intro, closing, praise, homework.
 3. **Camera tile** (`frames.py`): every 30s, only frames where the tutor is speaking: 8x8 logo, face visible, face brightness.
 4. **Grade** (`score.py`): hand-set weights, taken from the human reviewer's feedback on the sample classes. The label comes from this score, not the LLM.
@@ -23,7 +23,7 @@ Check: `.venv/bin/python test_core.py`. A 50-minute class takes 1-5 minutes.
 
 ## Limitations
 - Weights are fitted by hand on 10 labelled classes (2 per grade): a rubric, not a trained model.
-- Without a `.vtt` there is no teacher/student split; the strongest signal is lost.
+- Without a `.vtt` the teacher/student split comes from diarization. On the 8 labelled classes it gets 2 exact grades and 7 within one level (with a `.vtt`: 6 exact). Ordering is mostly kept, but treat it as approximate.
 - The logo and face checks are whole-frame template/Haar matches sampled every 30s; they agree with the reviewer on all 10 English classes, but chat-shared homework or background changes outside the transcript can't be seen.
 - 6 of the 8 reviewer-labelled classes get the exact grade (the others are one level off: B435 average -> Good, B558 weak -> Average).
 - Mostly-English; Malayalam classes are unreliable.

@@ -2,7 +2,6 @@
 import tempfile
 
 from features import features, parse
-from pipeline import verified
 from score import observations, score
 
 VTT = """WEBVTT
@@ -49,10 +48,13 @@ def test_score_orders_participation():
     assert score(lively)[1] == "Excellent" and score(silent)[1] == "Poor"
 
 
-def test_verified_drops_invented_quotes():
-    cues = parse(vtt_file())
-    real = {"quote": "Tutor Ann: Hello Ria, how are you?"}
-    assert verified([real, {"quote": "You are all doing great"}, "junk"], cues) == [real]
+def test_diarized_score_ignores_turns_and_stays_in_range():
+    f = {**features(vtt_file()), "diarized": True}
+    total, _, parts = score(f)
+    assert "student turns per min" not in parts and 0 <= total <= 100
+    f["student_turns"] = 10_000  # cluster flips must not move a diarized grade
+    assert score(f)[0] == total
+    assert all("switches" not in o["point"] for o in observations(parse(vtt_file()), f, {"frames": 0}))
 
 
 def test_observations_use_real_transcript_lines():

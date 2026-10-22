@@ -10,13 +10,16 @@ def score(f):
     mins = f["duration_min"] or 1
     parts = {
         "student participation (words/min)": 35 * clamp(f["student_words_per_min"] / 50),
-        "student turns per min": 20 * clamp(f["student_turns"] / mins / 8),
+        "student turns per min": 20 * clamp(f["student_turns"] / mins / 8),  # dropped when diarized: turns are cluster flips, not real turns
         "teacher talk share": 15 * (1 - clamp((f["teacher_talk_share"] - 0.5) / 0.3)),
         "rapport intro": 10 * clamp(f["intro_in_first_10pct"]),
         "closing": 8 * clamp(f["bye_in_last_10pct"]),
         "praise": 7 * clamp(f["praise_count"] / 20),
         "homework": 5 * clamp(f["homework_mentions"]),
     }
+    if f.get("diarized"):
+        del parts["student turns per min"]
+        parts = {k: v * 100 / 80 for k, v in parts.items()}
     total = round(sum(parts.values()))
     return total, next(l for t, l in LABELS if total >= t), parts
 
@@ -56,8 +59,9 @@ def observations(cues, f, fr):
     names = {s.split()[0].lower() for _, s, _ in cues if s != t and not s.startswith(("Audio", "?")) and len(s.split()[0]) > 2}
     sw = f["kid_switches_per_min"]
     named = next((c for c in mine if "?" in c[2] and any(w.strip(",.?!").lower() in names for w in c[2].split())), None)
-    out.append(ev(sw >= 2.5, f"Involved many different kids in turn ({sw} switches between kids/min)" if sw >= 2.5
-                  else f"Few kids took turns ({sw} switches between kids/min); call on each child in turn", named))
+    if not f.get("diarized"):
+        out.append(ev(sw >= 2.5, f"Involved many different kids in turn ({sw} switches between kids/min)" if sw >= 2.5
+                      else f"Few kids took turns ({sw} switches between kids/min); call on each child in turn", named))
     swpm = f["student_words_per_min"]
     out.append(ev(swpm >= 30, f"Kids spoke a lot ({swpm} words/min, {f['teacher_talk_share']:.0%} teacher talk)" if swpm >= 30
                   else f"Kids spoke little ({swpm} words/min; teacher talk {f['teacher_talk_share']:.0%}); ask more, talk less",

@@ -18,7 +18,7 @@ def speakers(wav):
                 model=str(M / "sherpa-onnx-pyannote-segmentation-3-0" / "model.onnx")),
             num_threads=4),
         embedding=sherpa_onnx.SpeakerEmbeddingExtractorConfig(model=str(M / "emb.onnx"), num_threads=4),
-        clustering=sherpa_onnx.FastClusteringConfig(num_clusters=-1, threshold=0.6),  # ponytail: tuned by eye on 2 classes; lower = more speakers
+        clustering=sherpa_onnx.FastClusteringConfig(num_clusters=4, threshold=0.5),  # ponytail: threshold mode gave 55-166 speakers; 4 ~ teacher + kids, shares within ~0.1 on 2 classes
         min_duration_on=0.3, min_duration_off=0.5)
     audio, _ = sf.read(str(wav), dtype="float32")
     segs = sherpa_onnx.OfflineSpeakerDiarization(cfg).process(audio).sort_by_start_time()
