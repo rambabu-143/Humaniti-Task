@@ -30,7 +30,7 @@ def features(path):
     words = Counter()
     for _, sp, t in cues:
         words[sp] += len(t.split())
-    teacher = words.most_common(1)[0][0]  # ponytail: teacher = most words; fails if kids dominate
+    teacher = next(w for w, _ in words.most_common() if not w.startswith("Audio shared"))  # ponytail: teacher = most words; fails if kids dominate
     students = [s for s in words if s != teacher]
     t_cues = [c for c in cues if c[1] == teacher]
     first, last = dur * 0.1, dur * 0.9

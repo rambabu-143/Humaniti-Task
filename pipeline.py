@@ -7,6 +7,7 @@ from pathlib import Path
 
 from features import features, parse
 from frames import frame_features
+from score import score
 
 LLM = "http://localhost:8080/v1/chat/completions"
 LABELS = ["Poor", "Average", "Good", "Excellent"]
@@ -47,19 +48,41 @@ def ask(prompt):
     return json.loads(json.loads(urllib.request.urlopen(req, timeout=900).read())["choices"][0]["message"]["content"])
 
 
+def norm(t):
+    return " ".join("".join(c if c.isalnum() else " " for c in t.lower()).split())
+
+
+def verified(items, cues):
+    """Keep only observations whose quote really appears in the transcript."""
+    text = norm(" ".join(f"{c[1]}: {c[2]}" for c in cues) + " " + " ".join(c[2] for c in cues))
+    return [i for i in items if isinstance(i, dict) and i.get("quote") and norm(i["quote"]) in text]
+
+
 def assess(video, vtt=None, cache="cache/frames"):
     video = Path(video)
     cues = parse(vtt) if vtt else transcribe(video)
     feats = features(vtt) if vtt else {}
     fr = frame_features(video, Path(cache) / video.stem.replace(" ", ""), cues if vtt else None, feats.get("teacher"))
     dur = max(c[0] for c in cues)
-    prompt = (f"Automatic signals:\n{json.dumps(feats)}\nCamera/background signals (tutor-speaking frames only; share 0-1):\n{json.dumps(fr)}\n\n"
+    fixed = ""
+    if feats:
+        total, label, parts = score(feats)
+        fixed = f"The grade is already decided: {label} (score {total}/100). Explain it; do not change it.\nScore breakdown: {json.dumps({k: round(v) for k, v in parts.items()})}\n"
+    prompt = (f"{fixed}Automatic signals:\n{json.dumps(feats)}\nCamera/background signals (tutor-speaking frames only; share 0-1):\n{json.dumps(fr)}\n\n"
               f"Transcript excerpts:\n{excerpt(cues, dur)}\n\n"
               'Return JSON: {"label": "Poor|Average|Good|Excellent", "summary": "2 sentences", '
-              '"strengths": ["specific, cite mm:ss or quote"], "improvements": ["specific, cite mm:ss or quote"], "setup_flags": ["camera/background/lighting issues if any"]}')
+              '"strengths": [{"point": "...", "quote": "EXACT words copied from the transcript", "time": "mm:ss"}], '
+              '"improvements": [{"point": "...", "quote": "EXACT words copied from the transcript", "time": "mm:ss"}], '
+              '"setup_flags": []}. setup_flags: list a flag only when the camera signals show a real problem (face_visible_share under 0.2, no background, brightness under 70); otherwise leave it empty')
     res = ask(prompt)
-    if res.get("label") not in LABELS:
-        res["label"] = "Average"  # ponytail: model strayed from the label set
+    res["strengths"] = verified(res.get("strengths", []), cues)
+    res["improvements"] = verified(res.get("improvements", []), cues)
+    if feats:
+        res.update(label=label, score=total, score_breakdown={k: round(v) for k, v in parts.items()})
+    else:
+        res["note"] = "No speaker labels (no .vtt): grade is the model's judgement from text only, less reliable."
+        if res.get("label") not in LABELS:
+            res["label"] = "Average"  # ponytail: model strayed from the label set
     return {**res, "signals": {**feats, **fr}}
 
 
