@@ -1,4 +1,6 @@
 """Gradio UI: upload a class recording (+ optional .vtt transcript) -> quality grade with evidence."""
+import os
+
 import gradio as gr
 
 from pipeline import assess
@@ -29,4 +31,6 @@ demo = gr.Interface(
 )
 
 if __name__ == "__main__":
-    demo.launch(server_name="127.0.0.1")  # local only: recordings show children
+    # local only: recordings show children. Set APP_USER and APP_PASSWORD before exposing it through a tunnel.
+    user, pw = os.getenv("APP_USER"), os.getenv("APP_PASSWORD")
+    demo.launch(server_name="127.0.0.1", auth=(user, pw) if user and pw else None)
