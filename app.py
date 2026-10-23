@@ -33,4 +33,6 @@ demo = gr.Interface(
 if __name__ == "__main__":
     # local only: recordings show children. Set APP_USER and APP_PASSWORD before exposing it through a tunnel.
     user, pw = os.getenv("APP_USER"), os.getenv("APP_PASSWORD")
-    demo.launch(server_name="127.0.0.1", auth=(user, pw) if user and pw else None)
+    if not (user and pw):
+        print("WARNING: APP_USER/APP_PASSWORD not set, so there is no login. Do not expose this through a tunnel.")
+    demo.launch(server_name="127.0.0.1", server_port=7860, auth=(user, pw) if user and pw else None)  # fixed port: fail loudly if taken
