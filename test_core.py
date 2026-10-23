@@ -68,13 +68,6 @@ def test_observations_use_real_transcript_lines():
     assert sum(not o["ok"] for o in dim) >= 3  # no background, hidden face, dim face
 
 
-if __name__ == "__main__":
-    for name, fn in list(globals().items()):
-        if name.startswith("test_"):
-            fn()
-            print("ok", name)
-
-
 def test_split_uploads_sorts_by_extension():
     from app import split_uploads
     assert split_uploads(["/x/a.VTT", "/x/b.mp4"]) == ("/x/b.mp4", "/x/a.VTT")
@@ -85,3 +78,10 @@ def test_split_uploads_sorts_by_extension():
             raise AssertionError(bad)
         except Exception as e:
             assert "Upload one" in str(e)
+
+
+if __name__ == "__main__":
+    for name, fn in list(globals().items()):
+        if name.startswith("test_"):
+            fn()
+            print("ok", name)
