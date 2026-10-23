@@ -6,9 +6,18 @@ import gradio as gr
 from pipeline import assess
 
 
-def run(video, vtt):
-    if not video:
-        raise gr.Error("Upload a class recording first.")
+def split_uploads(files):
+    """One upload box: the .vtt (if any) is the transcript, any other file is the recording."""
+    files = [files] if isinstance(files, str) else files or []
+    vtts = [f for f in files if f.lower().endswith(".vtt")]
+    videos = [f for f in files if not f.lower().endswith(".vtt")]
+    if len(videos) != 1 or len(vtts) > 1:
+        raise gr.Error("Upload one class recording, plus its .vtt transcript if you have one.")
+    return videos[0], vtts[0] if vtts else None
+
+
+def run(files):
+    video, vtt = split_uploads(files)
     r = assess(video, vtt)
     lines = [f"## {r['label']}" + (f"  ({r['score']}/100)" if "score" in r else ""), r.get("summary", "")]
     if r.get("note"):
@@ -23,7 +32,7 @@ def run(video, vtt):
 
 demo = gr.Interface(
     run,
-    [gr.File(label="Class recording (mp4)", type="filepath"), gr.File(label="Transcript .vtt (optional)", type="filepath")],
+    [gr.File(label="Class recording (mp4) + optional transcript (.vtt)", file_count="multiple", type="filepath")],
     [gr.Markdown(label="Assessment"), gr.JSON(label="Score breakdown"), gr.JSON(label="Raw signals")],
     title="8x8 class quality assessor",
     description="Runs fully locally (Phonon-2, OpenCV, Qwen3-8B). A 50-minute class takes a few minutes.",
