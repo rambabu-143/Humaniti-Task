@@ -19,7 +19,15 @@ llama-server -hf Qwen/Qwen3-8B-GGUF:Q4_K_M -c 16384 --port 8080 --jinja
 # terminal 2: app (http://127.0.0.1:7860)
 .venv/bin/python app.py
 ```
-Check: `.venv/bin/python test_core.py`. A 50-minute class takes 1-5 minutes.
+Check: `.venv/bin/python test_core.py`.
+
+### Sharing a demo link (recordings stay on your machine)
+```
+export APP_USER=demo APP_PASSWORD='<pick one>'   # login for the page
+.venv/bin/python app.py                          # terminal 2, as above
+cloudflared tunnel --url http://127.0.0.1:7860   # terminal 3: prints a https://*.trycloudflare.com link
+```
+Share the link and password privately (not in the repo). The Mac must stay on and awake while it is tested; stop the tunnel with Ctrl+C when done. A 50-minute class takes 1-5 minutes.
 
 ## Limitations
 - Weights are fitted by hand on 10 labelled classes (2 per grade): a rubric, not a trained model.
