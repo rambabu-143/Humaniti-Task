@@ -71,3 +71,15 @@ if __name__ == "__main__":
         if name.startswith("test_"):
             fn()
             print("ok", name)
+
+
+def test_split_uploads_sorts_by_extension():
+    from app import split_uploads
+    assert split_uploads(["/x/a.VTT", "/x/b.mp4"]) == ("/x/b.mp4", "/x/a.VTT")
+    assert split_uploads(["/x/b.mp4"]) == ("/x/b.mp4", None)
+    for bad in ([], ["/x/a.vtt"], ["/x/a.mp4", "/x/b.mp4"]):
+        try:
+            split_uploads(bad)
+            raise AssertionError(bad)
+        except Exception as e:
+            assert "Upload one" in str(e)
